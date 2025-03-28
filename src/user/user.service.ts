@@ -1,54 +1,55 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdatePatchUserDto } from './dto/update-patch-user.dto';
 import {  UpdatePutUserDto } from './dto/update-put-user.dto';
+import { UserEntity } from './entities/user.entity';
+//import { Role } from '../enums/role.enum';
 
-import { PrismaService } from 'src/prisma/prisma.service';
+// ATENÇÃO AQUI:  o Repository é o ORM do TypeORM. NODE.
+// Já o InjectRepository é um decorador do NestJS que injeta o repositório de uma entidade específica.
+import { Repository } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+
+
 
 @Injectable()
 export class UserService {
-  constructor( private readonly prisma: PrismaService) {
+
+  // Essa parte abaixo do constructor é padrão no typeorm.
+  constructor(
+    @InjectRepository(UserEntity)
+    private readonly userRepository: Repository<UserEntity>) {
 
   }
   async create(data :CreateUserDto) {
-    //console.log(data);
-    try{
-      await this.prisma.user.create({
-      data: data,
-      select: {
-        id: true,
-      }
+    if (
+      await this.userRepository.exists({
+        where: {
+          email: data.email,
+        },
+      })
+    ) {
+      throw new BadRequestException('Este e-mail já está sendo usado.');
     }
-    )
-  } catch (error) {
-    console.error(error);
-    return `An error has occured`;
-  }
-    return data;    
+    const user = this.userRepository.create(data);
+
+    return this.userRepository.save(user);
   }
 
   findAll() {
-    return this.prisma.user.findMany();
+    return this.userRepository.find();
   }
 
   async findOne(id: number) {
-    return (this.prisma.user.findUnique({
-      where: {
-        id: id  
-      }
+    return (this.userRepository.findOneBy({
+          id  
     }))
  }
 
   async update(id: number, updateUserDto: UpdatePutUserDto) {
     console.log(id)
     console.log(updateUserDto)
-    return this.prisma.user.update({
-      data: updateUserDto,
-      where: {
-        id: id  
-      }
-    
-     })
+    return this.userRepository.update(id,  updateUserDto    )
  }
 
   async updatePartial(id: number, updatePatchUserDto: UpdatePatchUserDto ) {
@@ -58,13 +59,7 @@ export class UserService {
       updatePatchUserDto.birth_at = new Date(updatePatchUserDto.birth_at).toISOString();
       console.log(updatePatchUserDto.birth_at);
     }
-    return this.prisma.user.update({
-      data: updatePatchUserDto,
-      where: {
-        id: id  
-      }
-    
-     })
+    return this.userRepository.update(id,  updatePatchUserDto    )
   }
 
   // async delete(id: number) {
@@ -77,16 +72,23 @@ export class UserService {
   //   return `Delete id: #${id} `;
   // }
   async delete(id: number) {
-    const user = await this.prisma.user.findUnique({
-      where: { id },
-    });
+    const user = await this.userRepository.findOneBy({ id });
     if (!user) {
       throw new NotFoundException(`Usuário com ID ${id} não encontrado.`);
     }
-    await this.prisma.user.delete({
-      where: { id },
-    });
+    await this.userRepository.delete( id );
     return `Usuário com ID ${id} - ${user.name} deletado com sucesso.`;
+  }
+  async existe(id: number) {
+    if (
+      !(await this.userRepository.exists({
+        where: {
+          id,
+        },
+      }))
+    ) {
+      throw new NotFoundException(`O usuário ${id} não existe.`);
+    }
   }
   
 }
