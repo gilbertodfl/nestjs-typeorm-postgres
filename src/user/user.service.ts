@@ -1,16 +1,12 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdatePatchUserDto } from './dto/update-patch-user.dto';
 import {  UpdatePutUserDto } from './dto/update-put-user.dto';
 import { UserEntity } from './entities/user.entity';
-//import { Role } from '../enums/role.enum';
-
 // ATENÇÃO AQUI:  o Repository é o ORM do TypeORM. NODE.
-// Já o InjectRepository é um decorador do NestJS que injeta o repositório de uma entidade específica.
 import { Repository } from 'typeorm';
+// Já o InjectRepository é um decorador do NestJS que injeta o repositório de uma entidade específica.
 import { InjectRepository } from '@nestjs/typeorm';
-
-
 
 @Injectable()
 export class UserService {
@@ -22,18 +18,26 @@ export class UserService {
 
   }
   async create(data :CreateUserDto) {
-    if (
-      await this.userRepository.exists({
-        where: {
-          email: data.email,
-        },
-      })
-    ) {
-      throw new BadRequestException('Este e-mail já está sendo usado.');
-    }
-    const user = this.userRepository.create(data);
+    try {
+      const existingUser = await this.userRepository.findOne({
+        where: { email: data.email },
+      });
 
-    return this.userRepository.save(user);
+      if (existingUser) {
+        throw new ConflictException('Este e-mail já está sendo usado.');
+      }
+
+      const user = this.userRepository.create(data);
+      return await this.userRepository.save(user);
+    } catch (error) {
+      // Verifica se o erro é uma instância de ConflictException
+      if (error instanceof ConflictException) {
+        throw error;
+      }
+      // Lança uma exceção genérica para outros erros
+      throw new InternalServerErrorException('Erro ao criar o usuário.');
+    }
+  
   }
 
   findAll() {
@@ -47,9 +51,23 @@ export class UserService {
  }
 
   async update(id: number, updateUserDto: UpdatePutUserDto) {
-    console.log(id)
-    console.log(updateUserDto)
-    return this.userRepository.update(id,  updateUserDto    )
+    try {
+      const existingUser = await this.userRepository.findOne({
+        where: { email: updateUserDto.email },
+      });
+
+      if (existingUser) {
+        throw new ConflictException('Este e-mail já está sendo usado.');
+      }
+      if ( ! await this.findOne(id) ) {
+        throw new NotFoundException(` - não encontrado.`);
+      }
+      else
+        return this.userRepository.update(id,  updateUserDto    )
+      } catch (error) {
+        // Log do erro ou tratamento específico
+        throw new InternalServerErrorException(`SERVICE: Erro ao atualizar o ID ${id}  - ${error.message}`);
+      }
  }
 
   async updatePartial(id: number, updatePatchUserDto: UpdatePatchUserDto ) {
@@ -61,16 +79,6 @@ export class UserService {
     }
     return this.userRepository.update(id,  updatePatchUserDto    )
   }
-
-  // async delete(id: number) {
-  //   console.log(id)
-  //   this.prisma.user.delete({
-  //     where: {
-  //       id
-  //     }
-  //   });
-  //   return `Delete id: #${id} `;
-  // }
   async delete(id: number) {
     const user = await this.userRepository.findOneBy({ id });
     if (!user) {

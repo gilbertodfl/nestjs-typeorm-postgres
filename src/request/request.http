@@ -10,26 +10,26 @@ POST http://localhost:3000/user HTTP/1.1
 content-type: application/json
 
 {
-	"name"   : "gilberto",
-	"email"  : "gilberto@gmail.com",
+	"name"   : "jean2",
+	"email"  : "jean221@gmail.com",
 	"password": "12345",
-	"birth_at": "1969-08-29T21:29:51.651Z"
+	"birthAt": "1969-08-29T21:29:51.651Z"
 }
 #### SEARCH BY ID ####
-GET http://localhost:3000/user/14
+GET http://localhost:3000/user/4
 
 #### DELETE BY ID ####
-DELETE http://localhost:3000/user/14
+DELETE http://localhost:3000/user/4
 
 #### UPDATE WITH PUT ####
-PUT http://localhost:3000/user/14 HTTP/1.1
+PUT http://localhost:3000/user/66 HTTP/1.1
 content-type: application/json
 
 {
 	"name"   : "yyy",
 	"email"  : "dsdfsdfasd@gmail.com",
 	"password": "12345",
-	"birth_at": "1969-08-29T21:29:51.651Z"
+	"birthAt": "1968-08-29T21:29:51.651Z"
 }
 
 #### UPDATE WITH PATCH - PARTIAL  ####
